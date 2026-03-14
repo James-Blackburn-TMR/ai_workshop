@@ -188,6 +188,10 @@ html, body {
 </div>
 
 <script>
+const JSONBIN_KEY = 'YOUR_SECRET_KEY_HERE';
+const JSONBIN_BIN = 'YOUR_BIN_ID_HERE';
+const API_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN}`;
+
 const POLLS = {
   icebreaker: {
     question: "How much AI do you currently use?",
@@ -205,15 +209,6 @@ const POLLS = {
       { key: 'reporting', label: '📊 Reporting', btnClass: 'btn-pink' },
       { key: 'planning',  label: '📅 Planning',  btnClass: 'btn-orange' }
     ]
-  },
-  spaces: {
-    question: "Which use case interests you most for Spaces?",
-    options: [
-      { key: 'planning', label: '📅 Content Planning', btnClass: 'btn-blue' },
-      { key: 'grants',   label: '💰 Grant Writing',    btnClass: 'btn-green' },
-      { key: 'pcb',      label: '🔌 PCB / Technical',  btnClass: 'btn-purple' },
-      { key: 'social',   label: '📱 Social Media',     btnClass: 'btn-pink' }
-    ]
   }
 };
 
@@ -223,7 +218,6 @@ function getParam(name) {
 
 const pollId = getParam('q') || 'icebreaker';
 const poll = POLLS[pollId] || POLLS['icebreaker'];
-const storageKey = 'workshopPoll_' + pollId;
 
 document.getElementById('poll-question').textContent = poll.question;
 
@@ -232,29 +226,52 @@ poll.options.forEach(opt => {
   const btn = document.createElement('button');
   btn.className = 'option-btn ' + opt.btnClass;
   btn.textContent = opt.label;
-  btn.setAttribute('role', 'listitem');
   btn.setAttribute('aria-label', 'Vote for: ' + opt.label.replace(/[^\w\s]/gi, ''));
   btn.addEventListener('click', () => castVote(opt.key, opt.label));
   optionsList.appendChild(btn);
 });
 
-function castVote(key, label) {
-  const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
-  data[key] = (data[key] || 0) + 1;
-  localStorage.setItem(storageKey, JSON.stringify(data));
+async function castVote(key, label) {
+  // Disable all buttons immediately to prevent double votes
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
 
-  const name = document.getElementById('nickname-input').value.trim();
-  showThankYou(name, label);
-  fireConfetti();
+  try {
+    // Get current data
+    const res = await fetch(API_URL + '/latest', {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    const json = await res.json();
+    const data = json.record;
+
+    // Increment vote
+    if (!data['workshopPoll_' + pollId]) data['workshopPoll_' + pollId] = {};
+    data['workshopPoll_' + pollId][key] = (data['workshopPoll_' + pollId][key] || 0) + 1;
+
+    // Save back
+    await fetch(API_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY
+      },
+      body: JSON.stringify(data)
+    });
+
+    const name = document.getElementById('nickname-input').value.trim();
+    showThankYou(name);
+    fireConfetti();
+  } catch(e) {
+    // Fallback: re-enable buttons if API fails
+    document.querySelectorAll('.option-btn').forEach(b => b.disabled = false);
+    alert('Connection error — please try again.');
+  }
 }
 
-function showThankYou(name, choice) {
+function showThankYou(name) {
   document.getElementById('poll-page').style.display = 'none';
   const thankPage = document.getElementById('thank-you-page');
   const msg = document.getElementById('thank-message');
-  msg.textContent = name
-    ? `Thanks ${name}! Your vote was counted.`
-    : `Thanks! Your vote was counted.`;
+  msg.textContent = name ? `Thanks ${name}! Your vote was counted.` : `Thanks! Your vote was counted.`;
   thankPage.classList.add('visible');
   startCountdown();
 }
@@ -268,8 +285,7 @@ function startCountdown() {
     if (count <= 0) {
       clearInterval(interval);
       try { window.close(); } catch(e) {}
-      // Fallback if window.close() is blocked
-      document.getElementById('countdown-num').closest('.countdown').textContent = 'You can close this tab.';
+      document.querySelector('.countdown').textContent = 'You can close this tab.';
     }
   }, 1000);
 }
@@ -279,23 +295,12 @@ function fireConfetti() {
   const end = Date.now() + 2000;
   const colors = ['#2383e2', '#7c3aed', '#db2777', '#0d8478', '#ea580c'];
   (function frame() {
-    confetti({
-      particleCount: 6,
-      angle: 60,
-      spread: 55,
-      origin: { x: 0 },
-      colors
-    });
-    confetti({
-      particleCount: 6,
-      angle: 120,
-      spread: 55,
-      origin: { x: 1 },
-      colors
-    });
+    confetti({ particleCount: 6, angle: 60, spread: 55, origin: { x: 0 }, colors });
+    confetti({ particleCount: 6, angle: 120, spread: 55, origin: { x: 1 }, colors });
     if (Date.now() < end) requestAnimationFrame(frame);
   })();
 }
 </script>
+
 </body>
 </html>
