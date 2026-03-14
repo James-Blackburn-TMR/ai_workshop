@@ -1036,7 +1036,7 @@ ul.bullet-list li { line-height: 1.5; }
   <div class="poll-container" id="poll-icebreaker-container">
     <div class="poll-question">🗳️ How much AI do you currently use?</div>
     <div class="qr-canvas-wrapper">
-      <canvas id="qr-icebreaker" aria-label="QR code to vote on icebreaker poll"></canvas>
+      <div id="qr-icebreaker" aria-label="QR code to vote on icebreaker poll"></div>
       <span class="qr-label">Scan to vote on your phone</span>
     </div>
     <div class="poll-results" id="results-icebreaker" aria-live="polite" aria-label="Live poll results">
@@ -1408,7 +1408,7 @@ Professional but accessible. Avoid jargon. Write as if explaining to an intellig
   <div class="poll-container" id="poll-timesink-container">
     <div class="poll-question">🗳️ Which of these tasks takes most of your time?</div>
     <div class="qr-canvas-wrapper">
-      <canvas id="qr-timesink" aria-label="QR code to vote on time sink poll"></canvas>
+      <div id="qr-timesink" aria-label="QR code to vote on time sink poll"></div>
       <span class="qr-label">Scan to vote on your phone</span>
     </div>
     <div class="poll-results" id="results-timesink" aria-live="polite">
@@ -2217,11 +2217,26 @@ function getBaseUrl() {
   return window.location.origin || 'https://your-workshop.vercel.app';
 }
 
+function generateQR(canvasId, url) {
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  el.innerHTML = '';
+  new QRCode(el, {
+    text: url,
+    width: 160,
+    height: 160,
+    colorDark: '#1a1a1a',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
 window.addEventListener('load', () => {
   const base = getBaseUrl();
   generateQR('qr-icebreaker', base + '/poll?q=icebreaker');
   generateQR('qr-timesink', base + '/poll?q=timesink');
 });
+
 
 // ===================== POLL LIVE RESULTS =====================
 function updatePollResults(pollId, keys) {
